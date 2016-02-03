@@ -7,14 +7,19 @@ using namespace atscppapi;
 class AMCPlugin : public GlobalPlugin
 {
 public:
-  AMCPlugin() { registerHook(HOOK_READ_REQUEST_HEADERS_PRE_REMAP); }
+  AMCPlugin(char const* name) {
+    _name.assign(name);
+    registerHook(HOOK_READ_REQUEST_HEADERS_PRE_REMAP);
+  }
 
   virtual void
   handleReadRequestHeadersPreRemap(Transaction &transaction)
   {
-    std::cout << "Hello from handleReadRequesHeadersPreRemap!" << std::endl;
+    std::cout << "CB: Read Request Header - " << _name << std::endl;
     transaction.resume();
   }
+private:
+  std::string _name;
 };
 
 void
@@ -26,5 +31,5 @@ TSPluginInit(int argc, const char *argv[])
   else sprintf(name, "amc");
 
   RegisterGlobalPlugin(name, "apache", "solidwallofcode@yahoo-inc.com");
-  new AMCPlugin;
+  new AMCPlugin(name);
 }
