@@ -240,12 +240,10 @@ Bridge::read_ready(TSVIO vio)
     case OPEN:
       if (!this->check_outbound_OK())
         break;
-      _out_resp_state = OK;
       // FALL THROUGH
     case OK:
       if (!this->check_outbound_terminal())
         break;
-      _out_resp_state = READY;
       // FALL THROUGH
     case READY:
       // Do setup for flowing upstream data to user agent.
@@ -392,6 +390,7 @@ Bridge::eos(TSVIO vio)
   }
   _out.do_close();
   _ua.do_close();
+  _out_resp_state = EOS;
   if (_ua_response_suspended)
     TSHttpTxnReenable(_ua_txn, TS_EVENT_HTTP_CONTINUE);
 }
@@ -414,16 +413,16 @@ void
 Bridge::update_ua_response()
 {
   TSMBuffer mbuf;
-  TSMLoc mloc;
-  if (TS_SUCCESS == TSHttpTxnClientRespGet(_ua_txn, &mbuf, &mloc)) {
-    TSHttpHdrStatusSet(mbuf, mloc, _out_response_code);
+  TSMloc hdr_loc;
+  if (TS_SUCCESS == TSHttpTxnClientRespGet(_ua_txn, &mbuf, &hdr_loc)) {
+    TSHttpHdrStatusSet(mbuf, hdr_loc, _out_response_code);
     if (!_out_response_reason.empty())
-      TSHttpHdrReasonSet(mbuf, mloc, _out_response_reason.data(), _out_response_reason.size());
+      TSHttpHdrReasonSet(mbuf, hdr_loc, _out_response_reason.data(), _out_response_reason.size());
     // TS insists on adding these fields, despite it being a CONNECT.
-    Hdr_Remove_Field(mbuf, mloc, { TS_MIME_FIELD_TRANSFER_ENCODING, TS_MIME_LEN_TRANSFER_ENCODING });
-    Hdr_Remove_Field(mbuf, mloc, { TS_MIME_FIELD_AGE, TS_MIME_LEN_AGE });
-    Hdr_Remove_Field(mbuf, mloc, { TS_MIME_FIELD_PROXY_CONNECTION, TS_MIME_LEN_PROXY_CONNECTION });
-    TSHandleMLocRelease(mbuf, TS_NULL_MLOC, mloc);
+    Hdr_Remove_Field(mbuf, hdr_loc, { TS_MIME_FIELD_TRANSFER_ENCODING, TS_MIME_LEN_TRANSFER_ENCODING });
+    Hdr_Remove_Field(mbuf, hdr_loc, { TS_MIME_FIELD_AGE, TS_MIME_LEN_AGE });
+    Hdr_Remove_Field(mbuf, hdr_loc, { TS_MIME_FIELD_PROXY_CONNECTION, TS_MIME_LEN_PROXY_CONNECTION });
+    TSHandleMLocRelease(mbuf, TS_NULL_MLOC, hdr_loc);
   } else {
     TSDebug(PLUGIN_TAG, "Failed to retrieve client response");
   }
